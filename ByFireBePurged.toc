@@ -3,7 +3,7 @@
 ## Notes: Automatically sells or destroys items from a list.
 ## Author: Lexxie Black
 ## Version: 0.1.0
-## SavedVariables: BFBP
+## SavedVariables: ByFireBePurgedDB
 ## IconTexture: Interface\AddOns\ByFireBePurged\Media\logo
 
 main.lua
