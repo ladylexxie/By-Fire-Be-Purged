@@ -2,9 +2,9 @@
 ## Title: By Fire Be Purged
 ## Notes: Automatically sells or destroys items from a list.
 ## Author: Lexxie Black
-## Version: 1.0.0
+## Version: 0.1.0
 ## SavedVariables: BFBP
-## IconTexture: Interface\AddOns\ByFireBePurged\Media\Icons\logo.tga
+## IconTexture: Interface\AddOns\ByFireBePurged\Media\logo
 
 main.lua
 
