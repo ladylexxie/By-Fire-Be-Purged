@@ -1,34 +1,22 @@
-local addonName, addonTable = ...
+local addonName = ...
 
-local BFBP = BFBP or {}
-
-BFBP.DB = BFBP.DB or {
-    sellList = {},
-    destroyList = {},
-    settings = {}
-}
-
-BFBP.Config = {
-    debugMode = false,
-    autoSell = true,
-    autoDestroy = false
-}
+local ByFireBePurged = {}
 
 -- Database interaction functions
-function BFBP:AddItemToList(list, itemID)
+function ByFireBePurged:AddItemToList(list, itemID)
     if not itemID or type(itemID) ~= "number" then
-        if self.Config.debugMode then print(addonName .. ": Invalid itemID for AddItem:", itemID) end
+        if ByFireBePurgedDB.debugMode then print(addonName .. ": Invalid itemID for AddItem:", itemID) end
         return
     end
 
     if not list or type(list) ~= "string" then
-        if self.Config.debugMode then print(addonName .. ": Invalid list name for AddItem:", list) end
+        if ByFireBePurgedDB.debugMode then print(addonName .. ": Invalid list name for AddItem:", list) end
         return
     end
 
-    BFBP.DB[list] = BFBP.DB[list] or {}
-    if not BFBP.DB[list][itemID] then
-        BFBP.DB[list][itemID] = true
+    ByFireBePurgedDB[list] = ByFireBePurgedDB[list] or {}
+    if not ByFireBePurgedDB[list][itemID] then
+        ByFireBePurgedDB[list][itemID] = true
         local _, link = C_Item.GetItemInfo(itemID)
         print(addonName ..
         ": Added item " .. (link or "Unknown Item") .. " (ID: " .. itemID .. ") to the " .. list .. ".")
@@ -37,20 +25,20 @@ function BFBP:AddItemToList(list, itemID)
     end
 end
 
-function BFBP:RemoveItemFromList(list, itemID)
+function ByFireBePurged:RemoveItemFromList(list, itemID)
     if not itemID or type(itemID) ~= "number" then
-        if self.Config.debugMode then print(addonName .. ": Invalid itemID for RemoveItem:", itemID) end
+        if ByFireBePurgedDB.debugMode then print(addonName .. ": Invalid itemID for RemoveItem:", itemID) end
         return
     end
 
     if not list or type(list) ~= "string" then
-        if self.Config.debugMode then print(addonName .. ": Invalid list name for RemoveItem:", list) end
+        if ByFireBePurgedDB.debugMode then print(addonName .. ": Invalid list name for RemoveItem:", list) end
         return
     end
 
-    BFBP.DB[list] = BFBP.DB[list] or {}
-    if BFBP.DB[list][itemID] then
-        BFBP.DB[list][itemID] = nil
+    ByFireBePurgedDB[list] = ByFireBePurgedDB[list] or {}
+    if ByFireBePurgedDB[list][itemID] then
+        ByFireBePurgedDB[list][itemID] = nil
         local _, link = C_Item.GetItemInfo(itemID)
         print(addonName ..
         ": Removed item " .. (link or "Unknown Item") .. " (ID: " .. itemID .. ") from the " .. list .. ".")
@@ -59,9 +47,9 @@ function BFBP:RemoveItemFromList(list, itemID)
     end
 end
 
-function BFBP:ListItems(list)
+function ByFireBePurged:ListItems(list)
     if not list or type(list) ~= "string" then
-        if self.Config.debugMode then print(addonName .. ": Invalid list name for ListItems:", list) end
+        if ByFireBePurgedDB.debugMode then print(addonName .. ": Invalid list name for ListItems:", list) end
         return
     end
 
@@ -74,31 +62,31 @@ function BFBP:ListItems(list)
         return
     end
 
-    if not BFBP.DB[list] or next(BFBP.DB[list]) == nil then
+    if not ByFireBePurgedDB[list] or next(ByFireBePurgedDB[list]) == nil then
         print(" - No items in this list.")
         return
     end
 
-    for itemID in pairs(BFBP.DB[list]) do
+    for itemID in pairs(ByFireBePurgedDB[list]) do
         local _, link = C_Item.GetItemInfo(itemID)
         print(" - " .. (link or "Unknown Item") .. " (ID: " .. itemID .. ")")
     end
 end
 
-function BFBP:SellItems()
+function ByFireBePurged:SellItems()
     if not MerchantFrame or not MerchantFrame:IsShown() then return end
-    if not BFBP.Config.autoSell then return end -- Check if auto-selling is enabled
+    if not ByFireBePurgedDB.autoSell then return end -- Check if auto-selling is enabled
 
-    if self.Config.debugMode then print(addonName .. ": Attempting to sell items.") end
+    if ByFireBePurgedDB.debugMode then print(addonName .. ": Attempting to sell items.") end
 
-    -- Ensure items table exists in BFBP.DB
-    if not BFBP.DB.sellList then
-        if self.Config.debugMode then print(addonName .. ": sellList does not exist in BFBP.DB.") end
+    -- Ensure items table exists in ByFireBePurgedDB
+    if not ByFireBePurgedDB.sellList then
+        if ByFireBePurgedDB.debugMode then print(addonName .. ": sellList does not exist in ByFireBePurgedDB.") end
         return
     end
 
     local itemsSold = 0
-    for itemID in pairs(BFBP.DB.sellList) do
+    for itemID in pairs(ByFireBePurgedDB.sellList) do
         -- WoW API functions for container interaction
         local useContainerItemFunc = C_Container and C_Container.UseContainerItem
         local getContainerItemLinkFunc = C_Container and C_Container.GetContainerItemLink
@@ -106,7 +94,7 @@ function BFBP:SellItems()
         local getContainerNumSlotsFunc = C_Container and C_Container.GetContainerNumSlots
 
         if not useContainerItemFunc or not getContainerItemLinkFunc or not getItemInfoInstantFunc or not getContainerNumSlotsFunc then
-            if self.Config.debugMode then print(addonName ..
+            if ByFireBePurgedDB.debugMode then print(addonName ..
                 ": Required C_Container or C_Item API functions not available.") end
             return
         end
@@ -135,16 +123,16 @@ function BFBP:SellItems()
     end
     if itemsSold > 0 then
         print(addonName .. ": Finished selling. Sold " .. itemsSold .. " item(s).")
-    elseif self.Config.debugMode then
+    elseif ByFireBePurgedDB.debugMode then
         print(addonName .. ": No items from the sell list found in bags to sell.")
     end
 end
 
-function BFBP:DestroyItems()
-    if self.Config.debugMode then print(addonName .. ": Attempting to destroy items from destroyList.") end
+function ByFireBePurged:DestroyItems()
+    if ByFireBePurgedDB.debugMode then print(addonName .. ": Attempting to destroy items from destroyList.") end
 
-    if not BFBP.DB.destroyList or next(BFBP.DB.destroyList) == nil then
-        if self.Config.debugMode then print(addonName .. ": destroyList is empty or does not exist.") end
+    if not ByFireBePurgedDB.destroyList or next(ByFireBePurgedDB.destroyList) == nil then
+        if ByFireBePurgedDB.debugMode then print(addonName .. ": destroyList is empty or does not exist.") end
         return
     end
 
@@ -164,7 +152,7 @@ function BFBP:DestroyItems()
         return
     end
 
-    for itemIDToDestroy in pairs(BFBP.DB.destroyList) do
+    for itemIDToDestroy in pairs(ByFireBePurgedDB.destroyList) do
         -- Loop through bags for each itemID.
         -- We iterate bags from backpack to other bags.
         for bag = BACKPACK_CONTAINER, NUM_BAG_SLOTS do
@@ -235,15 +223,15 @@ eventFrame:RegisterEvent("ADDON_LOADED") -- Keep this if you have initialization
 
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "MERCHANT_SHOW" then
-        if BFBP.Config.autoSell then -- Check the config before selling
-            BFBP:SellItems()
+        if ByFireBePurgedDB.autoSell then -- Check the config before selling
+            ByFireBePurged:SellItems()
         end
     elseif event == "ADDON_LOADED" then
         if select(1, ...) == addonName then
             -- Initialize database if it's not already initialized by defaults
-            BFBP.DB.sellList = BFBP.DB.sellList or {}
-            BFBP.DB.destroyList = BFBP.DB.destroyList or {}
-            BFBP.DB.settings = BFBP.DB.settings or {}
+            ByFireBePurgedDB.sellList = ByFireBePurgedDB.sellList or {}
+            ByFireBePurgedDB.destroyList = ByFireBePurgedDB.destroyList or {}
+            ByFireBePurgedDB.settings = ByFireBePurgedDB.settings or {}
             print(addonName .. " loaded. Type /bfbp help for commands.")
         end
     end
@@ -275,9 +263,9 @@ SlashCmdList["ByFireBePurged"] = function(msg)
         end
 
         if list == "sell" then
-            BFBP:AddItemToList("sellList", itemID)
+            ByFireBePurged:AddItemToList("sellList", itemID)
         elseif list == "destroy" then
-            BFBP:AddItemToList("destroyList", itemID)
+            ByFireBePurged:AddItemToList("destroyList", itemID)
         else
             print(addonName .. ": Invalid list type. Use 'sell' or 'destroy'.")
         end
@@ -298,9 +286,9 @@ SlashCmdList["ByFireBePurged"] = function(msg)
         end
 
         if list == "sell" then
-            BFBP:RemoveItemFromList("sellList", itemID)
+            ByFireBePurged:RemoveItemFromList("sellList", itemID)
         elseif list == "destroy" then
-            BFBP:RemoveItemFromList("destroyList", itemID)
+            ByFireBePurged:RemoveItemFromList("destroyList", itemID)
         else
             print(addonName .. ": Invalid list type. Use 'sell' or 'destroy'.")
         end
@@ -310,20 +298,20 @@ SlashCmdList["ByFireBePurged"] = function(msg)
             return
         end
         if list == "sell" then
-            BFBP:ListItems("sellList")
+            ByFireBePurged:ListItems("sellList")
         elseif list == "destroy" then
-            BFBP:ListItems("destroyList")
+            ByFireBePurged:ListItems("destroyList")
         elseif list == "all" then
-            BFBP:ListItems("sellList")
-            BFBP:ListItems("destroyList")
+            ByFireBePurged:ListItems("sellList")
+            ByFireBePurged:ListItems("destroyList")
         else
             print(addonName .. ": Invalid list type. Use 'sell', 'destroy', or 'all'.")
         end
     elseif cmd == "destroyitems" then -- New command to trigger destruction
-        BFBP:DestroyItems()
+        ByFireBePurged:DestroyItems()
     elseif cmd == "sellitems" then    -- Manual trigger for selling, if needed
         if MerchantFrame and MerchantFrame:IsShown() then
-            BFBP:SellItems()
+            ByFireBePurged:SellItems()
         else
             print(addonName .. ": You need to have a merchant window open to use sellitems.")
         end
@@ -338,15 +326,17 @@ SlashCmdList["ByFireBePurged"] = function(msg)
     elseif cmd == "toggle" then
         local setting = list -- reusing 'list' variable for the setting name
         if setting == "debug" then
-            BFBP.Config.debugMode = not BFBP.Config.debugMode
-            print(addonName .. ": Debug mode " .. (BFBP.Config.debugMode and "enabled" or "disabled") .. ".")
+            ByFireBePurgedDB.debugMode = not ByFireBePurgedDB.debugMode
+            print(addonName .. ": Debug mode " .. (ByFireBePurgedDB.debugMode and "enabled" or "disabled") .. ".")
         elseif setting == "autosell" then
-            BFBP.Config.autoSell = not BFBP.Config.autoSell
+            ByFireBePurgedDB.autoSell = not ByFireBePurgedDB.autoSell
             print(addonName ..
-            ": Auto sell on merchant visit " .. (BFBP.Config.autoSell and "enabled" or "disabled") .. ".")
+            ": Auto sell on merchant visit " .. (ByFireBePurgedDB.autoSell and "enabled" or "disabled") .. ".")
         else
             print(addonName .. ": Unknown setting to toggle: " .. (setting or "nil") .. ". Use 'debug' or 'autosell'.")
         end
+    elseif cmd == "config" then
+        Settings.OpenToCategory(addonName)
     else
         print(addonName .. ": Unknown command '" .. cmd .. "'. Type /bfbp help for commands.")
     end
