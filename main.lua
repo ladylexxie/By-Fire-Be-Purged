@@ -250,8 +250,8 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
 end)
 
 -- Slash commands
-SLASH_BFBP1 = "/bfbp"
-SlashCmdList["BFBP"] = function(msg)
+SLASH_ByFireBePurged1 = "/bfbp"
+SlashCmdList["ByFireBePurged"] = function(msg)
     local parts = {}
     for part in msg:gmatch("%S+") do table.insert(parts, part) end
     local cmd = parts[1] and parts[1]:lower() or "help"

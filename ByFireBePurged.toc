@@ -4,6 +4,7 @@
 ## Author: Lexxie Black
 ## Version: 1.0.0
 ## SavedVariables: BFBP
+## IconTexture: Interface\AddOns\ByFireBePurged\Media\Icons\logo.tga
 
 main.lua
 
