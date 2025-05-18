@@ -1,0 +1,13 @@
+## Interface: 110105
+## Title: By Fire Be Purged
+## Notes: Automatically sells or destroys items from a list.
+## Author: Lexxie Black
+## Version: 1.0.0
+## SavedVariables: BFBP
+
+main.lua
+
+#   ／l、   ᴹᴱᴼᵂ
+# （ﾟ､ ｡ ７
+#   l  ~ヽ
+#   じしf_,)ノ
