@@ -260,7 +260,7 @@ SlashCmdList["BFBP"] = function(msg)
 
     if cmd == "add" then
         if not list or not itemArg then
-            print(addonName .. ": Usage: /bfbp add <sell|destroy> <itemID|itemLink>")
+            print(addonName .. ": Usage: /bfbp add <sell||destroy> <itemID||itemLink>")
             return
         end
         local itemID = tonumber(itemArg)
@@ -283,7 +283,7 @@ SlashCmdList["BFBP"] = function(msg)
         end
     elseif cmd == "remove" then
         if not list or not itemArg then
-            print(addonName .. ": Usage: /bfbp remove <sell|destroy> <itemID|itemLink>")
+            print(addonName .. ": Usage: /bfbp remove <sell||destroy> <itemID||itemLink>")
             return
         end
         local itemID = tonumber(itemArg)
@@ -306,7 +306,7 @@ SlashCmdList["BFBP"] = function(msg)
         end
     elseif cmd == "list" then
         if not list then
-            print(addonName .. ": Usage: /bfbp list <sell|destroy|all>")
+            print(addonName .. ": Usage: /bfbp list <sell||destroy||all>")
             return
         end
         if list == "sell" then
@@ -329,12 +329,12 @@ SlashCmdList["BFBP"] = function(msg)
         end
     elseif cmd == "help" or cmd == "" then
         print(addonName .. ": Commands:")
-        print("  /bfbp add <sell|destroy> <itemID|itemLink> - Add item to list.")
-        print("  /bfbp remove <sell|destroy> <itemID|itemLink> - Remove item from list.")
-        print("  /bfbp list <sell|destroy|all> - List items in specified list(s).")
+        print("  /bfbp add <sell||destroy> <itemID||itemLink> - Add item to list.")
+        print("  /bfbp remove <sell||destroy> <itemID||itemLink> - Remove item from list.")
+        print("  /bfbp list <sell||destroy||all> - List items in specified list(s).")
         print("  /bfbp sellitems - Manually attempts to sell items from sellList (merchant window must be open).")
         print("  /bfbp destroyitems - Attempts to destroy all items in the destroyList.")
-        print("  /bfbp toggle <debug|autosell> - Toggles the specified setting.")
+        print("  /bfbp toggle <debug||autosell> - Toggles the specified setting.")
     elseif cmd == "toggle" then
         local setting = list -- reusing 'list' variable for the setting name
         if setting == "debug" then
