@@ -78,6 +78,7 @@ function ByFireBePurged:CreateStandaloneGUI()
         self:Print("Error: Main GUI Frame could not be created.")
         return
     end
+
     self.guiFrame:SetTitle(self.L["Item List Management"])
     self.guiFrame:SetStatusText(self.L["BY_FIRE_BE_PURGED"])
     self.guiFrame:SetLayout("Fill") -- Main frame will fill with its content (the column container)
@@ -111,12 +112,11 @@ function ByFireBePurged:CreateStandaloneGUI()
         return
     end
     sellColumnGroup:SetLayout("Flow") -- Content flows vertically
-    sellColumnGroup:SetWidth(280)     -- Further reduced width to prevent overflow
+    sellColumnGroup:SetWidth(275)     -- Further reduced width to prevent overflow
     sellColumnGroup:SetFullHeight(true)
     columnContainer:AddChild(sellColumnGroup) -- Add child FIRST, then set point relative to parent
     sellColumnGroup:SetPoint("TOPLEFT", 0, 0) -- Relative to parent's content frame
 
-    self:Print("Populating Sell List column...")
     self:_PopulateColumnWithControls("sellList", sellColumnGroup, self.guiFrame.columnControls.sellList)
 
 
@@ -127,14 +127,13 @@ function ByFireBePurged:CreateStandaloneGUI()
         self.guiFrame = nil
         return
     end
-    self:Print("Destroy List column group created.")
+
     destroyColumnGroup:SetLayout("Flow") -- Content flows vertically
-    destroyColumnGroup:SetWidth(280) -- Further reduced width
+    destroyColumnGroup:SetWidth(275) -- Further reduced width
     destroyColumnGroup:SetFullHeight(true)
     columnContainer:AddChild(destroyColumnGroup) -- Add child FIRST
-    destroyColumnGroup:SetPoint("TOPLEFT", sellColumnGroup.frame, "TOPRIGHT", 5, 0) -- Correct: Use .frame
+    destroyColumnGroup:SetPoint("TOPLEFT", sellColumnGroup.frame, "TOPRIGHT", 15, 0) -- Correct: Use .frame
 
-    self:Print("Populating Destroy List column...")
     self:_PopulateColumnWithControls("destroyList", destroyColumnGroup, self.guiFrame.columnControls.destroyList)
 
     self.guiFrame:Hide()
@@ -163,18 +162,18 @@ function ByFireBePurged:_PopulateColumnWithControls(listType, parentColumnGroup,
     controlsTable.addBox = addBox
 
     -- Add Item Button
-    local addButton = AceGUI:Create("Button")
-    if not addButton then self:Print("Error creating AddButton for " .. listType); return end
-    addButton:SetText(L["Add Item"])
-    addButton:SetFullWidth(true) -- Make button take full width of column segment
-    parentColumnGroup:AddChild(addButton)
-    addButton:SetCallback("OnClick", function() self:HandleGUIAddItem(listType, controlsTable.addBox) end)
-    controlsTable.addButton = addButton -- Though not strictly needed if addBox is primary ref
+    -- local addButton = AceGUI:Create("Button")
+    -- if not addButton then self:Print("Error creating AddButton for " .. listType); return end
+    -- addButton:SetText(L["Add Item"])
+    -- addButton:SetFullWidth(true) -- Make button take full width of column segment
+    -- parentColumnGroup:AddChild(addButton)
+    -- addButton:SetCallback("OnClick", function() self:HandleGUIAddItem(listType, controlsTable.addBox) end)
+    -- controlsTable.addButton = addButton -- Though not strictly needed if addBox is primary ref
 
     -- Spacer (optional, for visual separation)
     local spacer = AceGUI:Create("Label")
     spacer:SetText(" ") -- Empty text for spacing
-    spacer:SetHeight(10)
+    spacer:SetHeight(5)
     parentColumnGroup:AddChild(spacer)
 
     -- ScrollFrame for items
@@ -184,7 +183,7 @@ function ByFireBePurged:_PopulateColumnWithControls(listType, parentColumnGroup,
     scroll:SetFullWidth(true)
     -- Let ScrollFrame take up remaining height. This is tricky with Flow layout.
     -- A fixed height or more complex layout might be needed if it doesn't fill well.
-    scroll:SetHeight(250) -- Set a fixed, substantial height for the scroll area
+    scroll:SetHeight(300) -- Set a fixed, substantial height for the scroll area
     parentColumnGroup:AddChild(scroll)
     controlsTable.scrollContainer = scroll
 end
@@ -254,12 +253,10 @@ function ByFireBePurged:_RefreshColumnItemsDisplay(listType, scrollContainerWidg
             if itemEntryGroup then
                 itemEntryGroup:SetLayout("Flow") -- Item name and X button side-by-side
                 itemEntryGroup:SetFullWidth(true)
-                -- itemEntryGroup:SetHeight("wrap") -- Removed: Flow layout should handle this.
 
                 local itemLabel = AceGUI:Create("Label")
                 if itemLabel then
                     itemLabel:SetText(displayItemName)
-                    -- itemLabel:SetWidth(200) -- Give label a good portion of width before X button
                     -- Let Flow layout manage width or set to fill later if needed
                     itemEntryGroup:AddChild(itemLabel)
                 else
@@ -272,8 +269,6 @@ function ByFireBePurged:_RefreshColumnItemsDisplay(listType, scrollContainerWidg
                     removeButton:SetWidth(45) -- Keep slightly wider for clickability / visibility
                     removeButton:SetCallback("OnClick", function()
                         self.db.profile[listType][itemID] = nil
-                        local listNameKey = (listType == "sellList" and L["Sell List Name"]) or (listType == "destroyList" and L["Destroy List Name"]) or listType
-                        self:Print(L["Item removed from %s: %s"]:format(listNameKey, displayItemName))
                         self:_RefreshColumnItemsDisplay(listType, scrollContainerWidget) -- Refresh this specific column
                     end)
                     itemEntryGroup:AddChild(removeButton)
