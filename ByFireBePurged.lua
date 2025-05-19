@@ -1,92 +1,94 @@
-local addonName, private = ... -- Standard addon object and private table
+local addonName = ...
 local ByFireBePurged = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "AceEvent-3.0")
-local L = LibStub("AceLocale-3.0"):GetLocale(addonName) -- For localized strings
+local L = LibStub("AceLocale-3.0"):GetLocale(addonName)
 
 -- Default database values
 local defaults = {
     profile = {
         autoSell = true,
+        enableItemDestruction = false,
         debugMode = false,
-        sellList = {}, -- { [itemID] = true, ... }
-        destroyList = {} -- { [itemID] = true, ... }
+        sellList = {},
+        destroyList = {}
     }
 }
 
--- Forward declare for use in callbacks if needed, though direct calls should be fine
 local AceGUI = nil
 
-function ByFireBePurged:OnInitialize()
-    -- Called when the addon is first loaded, before OnEnable
-    self.db = LibStub("AceDB-3.0"):New("ByFireBePurgedDB", defaults, true) -- true for profile-based
-    self.tempGuiInputValues = {} -- Initialize temporary storage for AceConfig GUI inputs (may be deprecated with standalone GUI)
-    self.guiFrame = nil -- Will hold our standalone AceGUI frame
-    self.L = L -- Make L accessible via self if needed, though it's an upvalue here
-    AceGUI = LibStub("AceGUI-3.0") -- Initialize AceGUI upvalue
+-- Helper to print messages with a fiery colored addon name
+function ByFireBePurged:PrintFiery(message)
+    if not self.L or not self.L["ADDON_NAME"] then -- Fallback if L or ADDON_NAME isn't loaded yet
+        _G.print(("(%s): %s"):format(addonName, message)) -- Use global print
+        return
+    end
+    local fieryPrefix = "|cFFFF7F00" .. self.L["ADDON_NAME"] .. "|r: "
+    _G.print(fieryPrefix .. message) -- Use global print
+end
 
-    -- Register options panel (now only for general settings)
+function ByFireBePurged:OnInitialize()
+    self.db = LibStub("AceDB-3.0"):New("ByFireBePurgedDB", defaults, true)
+    self.tempGuiInputValues = {}
+    self.guiFrame = nil
+    self.L = L -- Ensure self.L is set for PrintFiery
+    AceGUI = LibStub("AceGUI-3.0")
+
+    -- Register options panel
     LibStub("AceConfig-3.0"):RegisterOptionsTable(L["ADDON_NAME"], self:GetOptionsTable(), "/bfbp")
     LibStub("AceConfigDialog-3.0"):AddToBlizOptions(L["ADDON_NAME"], L["ADDON_NAME"])
 
     -- Register slash command
     self:RegisterChatCommand("bfbp", "SlashCommandHandler")
-    self:RegisterChatCommand("byfirebepurged", "SlashCommandHandler") -- Alias
+    self:RegisterChatCommand("byfirebepurged", "SlashCommandHandler")
 
-    self:Print(L["ADDON_NAME"] .. " initialized. Type /bfbp for options.")
+    self:PrintFiery(L["MSG_INITIALIZED"])
 end
 
 function ByFireBePurged:OnEnable()
-    -- Called when the addon is enabled
-    self:Print(L["ADDON_NAME"] .. " enabled.")
+    self:PrintFiery(L["MSG_ENABLED"])
+    self:RegisterEvent("MERCHANT_SHOW", "SellTrashItems")
 end
 
 function ByFireBePurged:OnDisable()
-    -- Called when the addon is disabled
-    self:Print(L["ADDON_NAME"] .. " disabled.")
+    self:PrintFiery(L["MSG_DISABLED"])
+    self:UnregisterEvent("MERCHANT_SHOW")
 end
 
 function ByFireBePurged:SlashCommandHandler(input)
-    input = input:trim()
-    if input == "" or input:lower() == "config" then
+    input = input:trim():lower()
+    if input == "" then
         self:ToggleStandaloneGUI()
-    elseif input:lower() == "help" then
-        -- TODO: Implement more detailed help if needed
-        self:Print("Available commands:")
-        self:Print("/bfbp config - Toggles the item list management window.")
-        self:Print("/bfbp help - Shows this help message.")
+    elseif input == "help" then
+        self:Print(L["HELP_HEADER"])
+        self:Print(L["HELP_CONFIG_CMD"])
+        self:Print(L["HELP_DESTROY_CMD"])
+        self:Print(L["HELP_HELP_CMD"])
+    elseif input == "destroy" then
+        self:ExecuteDestroyListItems()
     else
-        -- For now, just open the GUI if any other unrecognized input is given
-        -- Or, you could parse for add/remove commands here directly in future
-        self:Print(L["FEEDBACK_INVALID_COMMAND"]:format(input) .. " Try /bfbp help or /bfbp config.")
+        self:PrintFiery(L["FEEDBACK_INVALID_COMMAND_FORMATTED"]:format(input))
         self:ToggleStandaloneGUI()
     end
 end
 
--- Helper to create the content (input boxes, buttons, scrollframe) for a list type
--- This function is effectively replaced by _PopulateColumnWithControls and can be removed or heavily refactored.
--- For now, it's unused by the new two-column layout.
--- function ByFireBePurged:_CreateListContentWidgets(listType, parentContainer) ... end
-
 function ByFireBePurged:CreateStandaloneGUI()
-    if self.guiFrame then return end -- Already created
+    if self.guiFrame then return end
 
-    -- Ensure AceGUI is loaded (it's set in OnInitialize, but good practice for standalone calls if any)
     if not AceGUI then AceGUI = LibStub("AceGUI-3.0") end
 
     -- Main Frame
     self.guiFrame = AceGUI:Create("Frame")
     if not self.guiFrame then
-        self:Print("Error: Main GUI Frame could not be created.")
+        self:PrintFiery(L["ERROR_GUI_FRAME_CREATE"])
         return
     end
 
     self.guiFrame:SetTitle(self.L["GUI_ITEM_LIST_MANAGEMENT_TITLE"])
     self.guiFrame:SetStatusText(self.L["ADDON_NAME"])
-    self.guiFrame:SetLayout("Fill") -- Main frame will fill with its content (the column container)
-    self.guiFrame:SetWidth(600) -- Increased width for two columns
+    self.guiFrame:SetLayout("Fill")
+    self.guiFrame:SetWidth(600)
     self.guiFrame:SetHeight(450)
     self.guiFrame:EnableResize(false)
 
-    -- Store widgets per list for easy access (e.g., input boxes, scroll frames)
     self.guiFrame.columnControls = {
         sellList = {},
         destroyList = {}
@@ -95,29 +97,26 @@ function ByFireBePurged:CreateStandaloneGUI()
     -- Container for the two columns
     local columnContainer = AceGUI:Create("SimpleGroup")
     if not columnContainer then
-        self:Print("Error creating columnContainer (SimpleGroup) for GUI.")
-        self.guiFrame = nil -- Invalidate frame if critical part fails
+        self:PrintFiery(L["ERROR_COLUMN_CONTAINER_CREATE"])
+        self.guiFrame = nil
         return
     end
-    columnContainer:SetLayout("Manual") -- Changed to Manual layout
+    columnContainer:SetLayout("Manual")
     columnContainer:SetFullWidth(true)
     columnContainer:SetFullHeight(true)
     self.guiFrame:AddChild(columnContainer)
 
     local backdropInfo = {
         bgFile = "Interface\\Buttons\\WHITE8X8",
-        -- edgeFile = "Interface\\Tooltip\\UI-Tooltip-Border", -- Not used in this texture method
-        -- tile = true, tileSize = 16, edgeSize = 16, -- Not directly used, SetAllPoints handles fill
-        -- insets = { left = 3, right = 3, top = 3, bottom = 3 } -- Not used
     }
-    local backgroundColor = {0.05, 0.05, 0.05, 0.7} -- Darkened background
-    local borderColor = {0, 0, 0, 0.8}               -- Black border
-    local borderThickness = 1 -- Pixel thickness for the border
+    local backgroundColor = {0.05, 0.05, 0.05, 0.7}
+    local borderColor = {0, 0, 0, 0.8}
+    local borderThickness = 1
 
     -- Sell List Column
     local sellColumnGroup = AceGUI:Create("SimpleGroup")
     if not sellColumnGroup then
-        self:Print("Error creating sellColumnGroup.")
+        self:PrintFiery(L["ERROR_SELL_COLUMN_CREATE"])
         self.guiFrame = nil
         return
     end
@@ -143,20 +142,19 @@ function ByFireBePurged:CreateStandaloneGUI()
 
     self:_PopulateColumnWithControls("sellList", sellColumnGroup, self.guiFrame.columnControls.sellList)
 
-
     -- Destroy List Column
     local destroyColumnGroup = AceGUI:Create("SimpleGroup")
     if not destroyColumnGroup then
-        self:Print("Error creating destroyColumnGroup.")
+        self:PrintFiery(L["ERROR_DESTROY_COLUMN_CREATE"])
         self.guiFrame = nil
         return
     end
 
-    destroyColumnGroup:SetLayout("Flow") -- Content flows vertically
-    destroyColumnGroup:SetWidth(275) -- Further reduced width
+    destroyColumnGroup:SetLayout("Flow")
+    destroyColumnGroup:SetWidth(275)
     destroyColumnGroup:SetFullHeight(true)
-    columnContainer:AddChild(destroyColumnGroup) -- Add child FIRST
-    destroyColumnGroup:SetPoint("TOPLEFT", sellColumnGroup.frame, "TOPRIGHT", 15, 0) -- Correct: Use .frame
+    columnContainer:AddChild(destroyColumnGroup)
+    destroyColumnGroup:SetPoint("TOPLEFT", sellColumnGroup.frame, "TOPRIGHT", 15, 0)
 
     -- Attempt to add background texture directly
     -- Outer texture for border
@@ -177,58 +175,47 @@ function ByFireBePurged:CreateStandaloneGUI()
     self.guiFrame:Hide()
 end
 
--- New function to populate a column with its title, input fields, and scroll frame
+-- Function to populate a column with its title, input fields, and scroll frame
 function ByFireBePurged:_PopulateColumnWithControls(listType, parentColumnGroup, controlsTable)
     local AceGUI = LibStub("AceGUI-3.0")
     local L = self.L
 
     -- Column Title
     local title = AceGUI:Create("Label")
-    local titleText = (listType == "sellList") and L["SELL_LIST"] or L["DESTROY_LIST"]
+    local titleText = (listType == "sellList" and L["SELL_LIST"]) or (listType == "destroyList" and L["DESTROY_LIST"]) or listType
     title:SetText(titleText)
-    title:SetFontObject(GameFontNormalLarge) -- Make title stand out
+    title:SetFontObject(GameFontNormalLarge)
     title:SetFullWidth(true)
     if title.SetJustifyH then
         title:SetJustifyH("CENTER")
     elseif title.fontstring and title.fontstring.SetJustifyH then
         title.fontstring:SetJustifyH("CENTER")
     else
-        if listType == "sellList" then self:Print("DEBUG: Could not set JustifyH for title label. Neither widget:SetJustifyH nor widget.fontstring:SetJustifyH available.") end
+        if listType == "sellList" then self:PrintFiery(L["DEBUG_JUSTIFY_H_FAIL"]) end
     end
     parentColumnGroup:AddChild(title)
 
     -- Add Item InputBox
     local addBox = AceGUI:Create("EditBox")
-    if not addBox then self:Print("Error creating AddBox for " .. listType); return end
+    if not addBox then self:PrintFiery(L["ERROR_ADD_BOX_CREATE"]:format(listType)); return end
     addBox:SetLabel(L["GUI_ADD_ITEM_LABEL"])
     addBox:SetFullWidth(true)
     addBox:SetCallback("OnEnterPressed", function(widget) self:HandleGUIAddItem(listType, widget) end)
     parentColumnGroup:AddChild(addBox)
     controlsTable.addBox = addBox
 
-    -- Add Item Button
-    -- local addButton = AceGUI:Create("Button")
-    -- if not addButton then self:Print("Error creating AddButton for " .. listType); return end
-    -- addButton:SetText(L["Add Item"])
-    -- addButton:SetFullWidth(true) -- Make button take full width of column segment
-    -- parentColumnGroup:AddChild(addButton)
-    -- addButton:SetCallback("OnClick", function() self:HandleGUIAddItem(listType, controlsTable.addBox) end)
-    -- controlsTable.addButton = addButton -- Though not strictly needed if addBox is primary ref
-
-    -- Spacer (optional, for visual separation)
+    -- Spacer
     local spacer = AceGUI:Create("Label")
-    spacer:SetText(" ") -- Empty text for spacing
+    spacer:SetText(" ")
     spacer:SetHeight(5)
     parentColumnGroup:AddChild(spacer)
 
     -- ScrollFrame for items
     local scroll = AceGUI:Create("ScrollFrame")
-    if not scroll then self:Print("Error creating ScrollFrame for " .. listType); return end
-    scroll:SetLayout("Flow") -- Items in scroll frame will flow top-to-bottom
+    if not scroll then self:PrintFiery(L["ERROR_SCROLL_FRAME_CREATE"]:format(listType)); return end
+    scroll:SetLayout("Flow")
     scroll:SetFullWidth(true)
-    -- Let ScrollFrame take up remaining height. This is tricky with Flow layout.
-    -- A fixed height or more complex layout might be needed if it doesn't fill well.
-    scroll:SetHeight(300) -- Set a fixed, substantial height for the scroll area
+    scroll:SetHeight(300)
     parentColumnGroup:AddChild(scroll)
     controlsTable.scrollContainer = scroll
 end
@@ -238,8 +225,8 @@ function ByFireBePurged:ToggleStandaloneGUI()
         self:CreateStandaloneGUI()
     end
 
-    if not self.guiFrame then -- Check again in case CreateStandaloneGUI failed
-        self:Print("Error: GUI Frame could not be initialized.")
+    if not self.guiFrame then
+        self:PrintFiery(L["ERROR_GUI_FRAME_INIT_FAIL"])
         return
     end
 
@@ -247,17 +234,16 @@ function ByFireBePurged:ToggleStandaloneGUI()
         self.guiFrame:Hide()
     else
         self.guiFrame:Show()
-        -- Refresh both lists when GUI is shown
         if self.guiFrame.columnControls.sellList.scrollContainer then
             self:_RefreshColumnItemsDisplay("sellList", self.guiFrame.columnControls.sellList.scrollContainer)
         else
-            self:Print("Sell list scroll container not found for refresh.")
+            self:PrintFiery(L["MSG_SELL_LIST_SCROLL_REFRESH_FAIL"])
         end
 
         if self.guiFrame.columnControls.destroyList.scrollContainer then
             self:_RefreshColumnItemsDisplay("destroyList", self.guiFrame.columnControls.destroyList.scrollContainer)
         else
-            self:Print("Destroy list scroll container NOT FOUND for refresh.")
+            self:PrintFiery(L["MSG_DESTROY_LIST_SCROLL_REFRESH_FAIL"])
         end
     end
 end
@@ -277,54 +263,51 @@ end
 -- Internal helper to refresh content of one list column
 function ByFireBePurged:_RefreshColumnItemsDisplay(listType, scrollContainerWidget)
     if not scrollContainerWidget then
-        self:Print("Error: Attempted to refresh a nil scroll container for " .. listType)
+        self:PrintFiery(L["ERROR_SCROLL_CONTAINER_REFRESH_FAIL"]:format(listType))
         return
     end
-    scrollContainerWidget:ReleaseChildren() -- Clear previous items
+    scrollContainerWidget:ReleaseChildren()
 
-    -- Ensure AceGUI is available
     if not AceGUI then AceGUI = LibStub("AceGUI-3.0") end
     local listData = self.db.profile[listType]
     local count = 0
-    local L = self.L -- For localization
 
     if listData and next(listData) then
         for itemID, _ in pairs(listData) do
-            local itemName, itemLink, _, _, _, itemType, itemSubType, _, itemEquipLoc = C_Item.GetItemInfo(itemID)
+            local itemName, itemLink, _, _, _, _, _, _, _ = C_Item.GetItemInfo(itemID)
             local displayItemName = itemLink or itemName or ("ItemID: " .. itemID)
 
             -- Create a container for the item text and its remove button
             local itemEntryGroup = AceGUI:Create("SimpleGroup")
             if itemEntryGroup then
-                itemEntryGroup:SetLayout("Flow") -- Item name and X button side-by-side
+                itemEntryGroup:SetLayout("Flow")
                 itemEntryGroup:SetFullWidth(true)
 
                 local itemLabel = AceGUI:Create("Label")
                 if itemLabel then
                     itemLabel:SetText(displayItemName)
-                    -- Let Flow layout manage width or set to fill later if needed
                     itemEntryGroup:AddChild(itemLabel)
                 else
-                    self:Print("Error creating itemLabel for " .. itemID .. " in " .. listType)
+                    self:PrintFiery(L["ERROR_ITEM_LABEL_CREATE"]:format(itemID, listType))
                 end
 
                 local removeButton = AceGUI:Create("Button")
                 if removeButton then
                     removeButton:SetText("X")
-                    removeButton:SetWidth(45) -- Keep slightly wider for clickability / visibility
+                    removeButton:SetWidth(45)
                     removeButton:SetCallback("OnClick", function()
                         self.db.profile[listType][itemID] = nil
-                        self:_RefreshColumnItemsDisplay(listType, scrollContainerWidget) -- Refresh this specific column
+                        self:_RefreshColumnItemsDisplay(listType, scrollContainerWidget)
                     end)
                     itemEntryGroup:AddChild(removeButton)
                 else
-                    self:Print("Error creating removeButton for " .. itemID .. " in " .. listType)
+                    self:PrintFiery(L["ERROR_REMOVE_BUTTON_CREATE"]:format(itemID, listType))
                 end
 
                 scrollContainerWidget:AddChild(itemEntryGroup)
                 count = count + 1
             else
-                self:Print("Error creating itemEntryGroup for " .. itemID .. " in " .. listType)
+                self:PrintFiery(L["ERROR_ITEM_ENTRY_GROUP_CREATE"]:format(itemID, listType))
             end
         end
     end
@@ -336,7 +319,7 @@ function ByFireBePurged:_RefreshColumnItemsDisplay(listType, scrollContainerWidg
             emptyLabel:SetFullWidth(true)
             scrollContainerWidget:AddChild(emptyLabel)
         else
-            self:Print("Error creating emptyLabel for " .. listType)
+            self:PrintFiery(L["ERROR_EMPTY_LABEL_CREATE"]:format(listType))
         end
     end
     scrollContainerWidget:DoLayout()
@@ -348,27 +331,27 @@ function ByFireBePurged:HandleGUIAddItem(listType, inputWidget)
 
     local itemID, err = self:ParseItemInput(itemString)
     if err or not itemID then
-        self:Print(err or L["FEEDBACK_INVALID_ITEM_FORMAT"]:format(itemString))
+        self:PrintFiery(err or L["FEEDBACK_INVALID_ITEM_FORMAT_GENERIC"]:format(itemString))
         return
     end
 
     local itemName, itemLink = C_Item.GetItemInfo(itemID)
     if not itemName then
-        self:Print(L["FEEDBACK_ITEM_INFO_FAILED"]:format(itemID))
+        self:PrintFiery(L["FEEDBACK_ITEM_INFO_FAILED_GENERIC"]:format(itemID))
         return
     end
 
     local listNameKey = (listType == "sellList" and L["SELL_LIST_NAME"]) or (listType == "destroyList" and L["DESTROY_LIST_NAME"]) or listType
 
     if self.db.profile[listType][itemID] then
-        self:Print(L["FEEDBACK_ITEM_ALREADY_IN_LIST"]:format(listNameKey, itemLink or itemName))
+        self:PrintFiery(L["FEEDBACK_ITEM_ALREADY_IN_LIST_FORMATTED"]:format(listNameKey, itemLink or itemName))
         return
     end
 
     self.db.profile[listType][itemID] = true
-    self:Print(L["FEEDBACK_ITEM_ADDED"]:format(listNameKey, itemLink or itemName))
-    inputWidget:SetText("") -- Clear input
-    -- Refresh the specific list that was modified
+    self:PrintFiery(L["FEEDBACK_ITEM_ADDED_FORMATTED"]:format(listNameKey, itemLink or itemName))
+    inputWidget:SetText("")
+
     if listType == "sellList" and self.guiFrame and self.guiFrame.columnControls.sellList.scrollContainer then
         self:_RefreshColumnItemsDisplay("sellList", self.guiFrame.columnControls.sellList.scrollContainer)
     elseif listType == "destroyList" and self.guiFrame and self.guiFrame.columnControls.destroyList.scrollContainer then
@@ -377,33 +360,29 @@ function ByFireBePurged:HandleGUIAddItem(listType, inputWidget)
 end
 
 function ByFireBePurged:HandleGUIRemoveItem(listType, inputWidget)
-    -- This function is now effectively deprecated by the per-item 'X' buttons.
-    -- We can leave it for now or remove it if no other part calls it.
-    -- For safety, let's make it clear it's not the primary way to remove.
-    self:Print("Note: Items are typically removed using the 'X' button next to them in the list.")
+    self:PrintFiery(L["NOTE_REMOVE_VIA_X_BUTTON"])
     local itemString = inputWidget:GetText()
     if not itemString or itemString:trim() == "" then return end
 
     local itemID, err = self:ParseItemInput(itemString)
     if err or not itemID then
-        self:Print(err or L["FEEDBACK_INVALID_ITEM_FORMAT"]:format(itemString))
+        self:PrintFiery(err or L["FEEDBACK_INVALID_ITEM_FORMAT_GENERIC"]:format(itemString))
         return
     end
 
     local listNameKey = (listType == "sellList" and L["SELL_LIST_NAME"]) or (listType == "destroyList" and L["DESTROY_LIST_NAME"]) or listType
-    local itemNameForMessage, itemLinkForMessage = C_Item.GetItemInfo(itemID) -- For message purposes
+    local itemNameForMessage, itemLinkForMessage = C_Item.GetItemInfo(itemID)
     local displayItemName = itemLinkForMessage or itemNameForMessage or ("ItemID: " .. itemID)
 
     if not self.db.profile[listType][itemID] then
-        -- Instead, let's make it clear this input box is not the primary removal method
-        self:Print(L["FEEDBACK_ITEM_NOT_FOUND_IN_LIST_SPECIFIC"]:format(displayItemName, listNameKey))
+        self:PrintFiery(L["FEEDBACK_ITEM_NOT_FOUND_IN_LIST_FORMATTED"]:format(displayItemName, listNameKey))
         return
     end
 
     self.db.profile[listType][itemID] = nil
-    self:Print(L["FEEDBACK_ITEM_REMOVED"]:format(listNameKey, displayItemName))
-    inputWidget:SetText("") -- Clear input
-    -- Refresh the specific list that was modified
+    self:PrintFiery(L["FEEDBACK_ITEM_REMOVED_FORMATTED"]:format(listNameKey, displayItemName))
+    inputWidget:SetText("")
+
     if listType == "sellList" and self.guiFrame and self.guiFrame.columnControls.sellList.scrollContainer then
         self:_RefreshColumnItemsDisplay("sellList", self.guiFrame.columnControls.sellList.scrollContainer)
     elseif listType == "destroyList" and self.guiFrame and self.guiFrame.columnControls.destroyList.scrollContainer then
@@ -414,7 +393,7 @@ end
 -- Helper function to parse item ID from string (link or ID)
 function ByFireBePurged:ParseItemInput(itemString)
     if not itemString or type(itemString) ~= "string" then
-        return nil, L["FEEDBACK_INVALID_ITEM_FORMAT"]:format(tostring(itemString))
+        return nil, L["FEEDBACK_INVALID_ITEM_FORMAT_PARSE_ERROR"]:format(tostring(itemString))
     end
 
     itemString = itemString:trim()
@@ -437,17 +416,9 @@ function ByFireBePurged:ParseItemInput(itemString)
     if itemID then
         return itemID
     else
-        return nil, L["FEEDBACK_INVALID_ITEM_FORMAT"]:format(itemString)
+        return nil, L["FEEDBACK_INVALID_ITEM_FORMAT_PARSE_ERROR"]:format(itemString)
     end
 end
-
--- These functions are for the AceConfig panel, which we are phasing out for list management.
--- They can be removed or kept if there's any other use for them.
--- For now, I will leave them commented out or to be removed in a later step
--- if confirmed they are fully replaced by the standalone GUI's logic.
-
--- function ByFireBePurged:AddItemToListGUI(listType, tempInputKey, aceConfigPathToRefresh) ... end
--- function ByFireBePurged:RemoveItemFromListGUI(listType, tempInputKey, aceConfigPathToRefresh) ... end
 
 function ByFireBePurged:GetOptionsTable()
     local options = {
@@ -467,11 +438,19 @@ function ByFireBePurged:GetOptionsTable()
                         get = function(info) return self.db.profile.autoSell end,
                         set = function(info, value) self.db.profile.autoSell = value end,
                     },
+                    enableItemDestruction = {
+                        type = "toggle",
+                        name = L["SETTINGS_ENABLE_ITEM_DESTRUCTION"],
+                        desc = L["SETTINGS_ENABLE_ITEM_DESTRUCTION_TOOLTIP"],
+                        order = 2,
+                        get = function(info) return self.db.profile.enableItemDestruction end,
+                        set = function(info, value) self.db.profile.enableItemDestruction = value end,
+                    },
                     debugMode = {
                         type = "toggle",
                         name = L["SETTINGS_ENABLE_DEBUG_MODE"],
                         desc = L["SETTINGS_ENABLE_DEBUG_MODE_TOOLTIP"],
-                        order = 2,
+                        order = 3,
                         get = function(info) return self.db.profile.debugMode end,
                         set = function(info, value) self.db.profile.debugMode = value end,
                     },
@@ -488,14 +467,12 @@ function ByFireBePurged:GetOptionsTable()
                     },
                     guiInfo = {
                         type = "description",
-                        name = "List management is now handled by the standalone GUI. Type /bfbp config to open it.",
+                        name = L["SETTINGS_GUI_INFO_MSG"],
                         order = 12,
                         fontSize = "medium",
                     }
                 }
-            },
-            -- Removed "lists" group as it's moving to a standalone GUI
-            -- lists = { ... }
+            }
         }
     }
     return options
@@ -508,11 +485,11 @@ function ByFireBePurged:FormatItemList(itemList)
         for itemID, _ in pairs(itemList) do
             local itemName, itemLink = C_Item.GetItemInfo(itemID)
             if itemName and itemLink then
-                formattedString = formattedString .. itemLink .. "\\n"
+                formattedString = formattedString .. itemLink .. "\n"
             elseif itemName then
-                formattedString = formattedString .. itemName .. " (ID: " .. tostring(itemID) .. ")\\n"
+                formattedString = formattedString .. itemName .. " (ID: " .. tostring(itemID) .. ")\n"
             else
-                formattedString = formattedString .. "Unknown Item (ID: " .. tostring(itemID) .. ")\\n"
+                formattedString = formattedString .. "Unknown Item (ID: " .. tostring(itemID) .. ")\n"
             end
             count = count + 1
         end
@@ -523,4 +500,136 @@ function ByFireBePurged:FormatItemList(itemList)
     return formattedString
 end
 
--- Chat command handling for GUI interactions and direct list modification will be added later.
+-- Function to automatically sell items from the sell list
+function ByFireBePurged:SellTrashItems()
+    if not self.db.profile.autoSell then
+        if self.db.profile.debugMode then
+            self:PrintFiery(L["DEBUG_AUTO_SELL_DISABLED_MSG"])
+        end
+        return
+    end
+
+    if self.db.profile.debugMode then
+        self:PrintFiery(L["DEBUG_MERCHANT_EVENT_SELL_START_MSG"])
+    end
+
+    local itemsSoldCount = 0
+    for bag = BACKPACK_CONTAINER, NUM_BAG_SLOTS do
+        for slot = 1, C_Container.GetContainerNumSlots(bag) do
+            local itemID = C_Container.GetContainerItemID(bag, slot)
+            if itemID and self.db.profile.sellList[itemID] then
+                local itemName, itemLink, _, _, _, _, _, _, _, itemSellPrice = C_Item.GetItemInfo(itemID)
+                local displayName = itemLink or itemName or ("ItemID: " .. itemID)
+
+                if itemSellPrice and itemSellPrice > 0 then
+                    C_Container.UseContainerItem(bag, slot)
+                    if self.db.profile.debugMode then
+                        self:PrintFiery(L["FEEDBACK_ITEM_SOLD_MSG"]:format(displayName))
+                    end
+                    itemsSoldCount = itemsSoldCount + 1
+                elseif self.db.profile.debugMode then
+                    self:PrintFiery(L["FEEDBACK_ITEM_NOT_SELLABLE_MSG"]:format(displayName))
+                end
+            end
+        end
+    end
+
+    if itemsSoldCount > 0 then
+        self:PrintFiery(L["FEEDBACK_TRANSACTION_COMPLETE_MSG"]:format(itemsSoldCount))
+    elseif self.db.profile.debugMode then
+        self:PrintFiery(L["DEBUG_NO_SELLABLE_ITEMS_FOUND_MSG"])
+    end
+end
+
+-- Renamed function, now triggered by slash command
+function ByFireBePurged:ExecuteDestroyListItems()
+    if not self.db.profile.enableItemDestruction then
+        if self.db.profile.debugMode then
+            self:PrintFiery(L["DEBUG_ITEM_DESTRUCTION_DISABLED_MSG"])
+        end
+        self:PrintFiery(L["FEEDBACK_ITEM_DESTRUCTION_TOGGLE_OFF_MSG"])
+        return
+    end
+
+    if not next(self.db.profile.destroyList) then
+        if self.db.profile.debugMode then
+            self:PrintFiery(L["DEBUG_DESTROY_LIST_EMPTY_MSG"])
+        end
+        self:PrintFiery(L["FEEDBACK_DESTROY_LIST_IS_EMPTY_MSG"])
+        return
+    end
+
+    if self.db.profile.debugMode then
+        self:PrintFiery(L["DEBUG_MANUAL_DESTROY_SCAN_START_MSG"])
+    end
+
+    local pickupItemFunc = C_Container and C_Container.PickupContainerItem
+    local deleteCursorFunc = _G.DeleteCursorItem
+    local getNumSlotsFunc = C_Container and C_Container.GetContainerNumSlots
+    local getItemIDInSlotFunc = C_Container and C_Container.GetContainerItemID
+    local getItemDisplayInfoFunc = C_Item and C_Item.GetItemInfo
+    local clearCursorAPI = _G.ClearCursor
+    local hasItemCursorAPI = _G.CursorHasItem
+
+    if not (pickupItemFunc and deleteCursorFunc and getNumSlotsFunc and getItemIDInSlotFunc and getItemDisplayInfoFunc and clearCursorAPI and hasItemCursorAPI) then
+        self:PrintFiery(L["FEEDBACK_API_FUNCTIONS_MISSING_FOR_DESTROY_MSG"])
+        return
+    end
+
+    local itemsDestroyedSuccessfully = 0
+
+    for itemIDToDestroy, _ in pairs(self.db.profile.destroyList) do
+        for bag = BACKPACK_CONTAINER, NUM_BAG_SLOTS do
+            local numSlots = getNumSlotsFunc(bag) -- Initial number of slots for this bag
+            local slot = 1
+            while slot <= numSlots do
+                local itemInSlotID = getItemIDInSlotFunc(bag, slot)
+
+                if itemInSlotID and itemInSlotID == itemIDToDestroy then
+                    local itemName, actualItemLink = getItemDisplayInfoFunc(itemInSlotID)
+                    local displayName = actualItemLink or itemName or ("ItemID: " .. itemInSlotID)
+
+                    if self.db.profile.debugMode then
+                        self:PrintFiery(L["FEEDBACK_ATTEMPTING_TO_DESTROY_ITEM_MSG"]:format(displayName, bag, slot))
+                    end
+
+                    pickupItemFunc(bag, slot)
+
+                    if hasItemCursorAPI() then
+                        deleteCursorFunc()
+                        itemsDestroyedSuccessfully = itemsDestroyedSuccessfully + 1
+                        self:PrintFiery(L["FEEDBACK_ITEM_DESTROYED_SUCCESS_MSG"]:format(displayName))
+
+                        -- Item was destroyed, inventory may have shifted.
+                        -- Update numSlots as it might have changed (though less likely for simple item removal vs bag removal)
+                        numSlots = getNumSlotsFunc(bag)
+                        -- Do not increment slot; the current slot index will be re-evaluated with its new content (or empty state).
+                        -- slot = slot + 1
+                    else
+                        self:PrintFiery(L["FEEDBACK_ITEM_PICKUP_FAILED_MSG"]:format(displayName))
+                        if hasItemCursorAPI() then -- Safeguard if pickup failed but cursor somehow got an item
+                            clearCursorAPI()
+                        end
+                        -- slot = slot + 1 -- Move to the next slot if pickup failed to avoid an infinite loop on a problematic slot.
+                    end
+                    slot = slot + 1
+                else
+                    slot = slot + 1 -- Item in slot does not match, or slot is empty; move to the next slot.
+                end
+            end -- End of slot loop (while)
+        end -- End of bag loop
+    end -- End of itemIDToDestroy loop
+
+    if itemsDestroyedSuccessfully > 0 then
+        self:PrintFiery(L["FEEDBACK_DESTROY_RUN_COMPLETE_MSG"]:format(itemsDestroyedSuccessfully))
+    elseif self.db.profile.debugMode and itemsDestroyedSuccessfully == 0 then
+        self:PrintFiery(L["FEEDBACK_NO_ITEMS_DESTROYED_IN_RUN_MSG"])
+    end
+
+    if hasItemCursorAPI() and clearCursorAPI then
+        if self.db.profile.debugMode then
+            self:PrintFiery(L["FEEDBACK_CURSOR_CLEARED_UNEXPECTED_MSG"])
+        end
+        clearCursorAPI()
+    end
+end
