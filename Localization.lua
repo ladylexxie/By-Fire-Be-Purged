@@ -1,45 +1,40 @@
 local addonName, private = ...
-local L = LibStub("AceLocale-3.0"):NewLocale(addonName, "enUS", true)
+local L = LibStub("AceLocale-3.0"):NewLocale("ByFireBePurged", "enUS", true)
 if not L then return end
 
-L["BY_FIRE_BE_PURGED"] = "By Fire Be Purged"
-L["Settings"] = "Settings"
-L["General Settings"] = "General Settings"
-L["Enable Automatic Selling"] = "Enable Automatic Selling"
-L["Enable Automatic Selling_Tooltip"] = "If checked, automatically sells items from your 'sell list' when you visit a merchant."
-L["Enable Debug Mode"] = "Enable Debug Mode"
-L["Enable Debug Mode_Tooltip"] = "If checked, prints detailed operational messages to chat for troubleshooting."
-L["Managed Item Lists"] = "Managed Item Lists"
-L["Sell List"] = "Sell List"
-L["Destroy List"] = "Destroy List"
-L["Items in Sell List:"] = "Items in Sell List:"
-L["Items in Destroy List:"] = "Items in Destroy List:"
-L["List is empty."] = "List is empty."
-L["Slash Commands:"] = "Slash Commands:"
-L["Slash Command Description"] = ("Use slash commands to manage your lists:\n" ..
-    "/bfbp add <sell|destroy> <itemLink|itemID>\n" ..
-    "/bfbp list <sell|destroy|all>\n" ..
-    "/bfbp remove <sell|destroy> <itemLink|itemID>\n" ..
-    "/bfbp destroyitems (to destroy items on list)\n" ..
+L["ADDON_NAME"] = "By Fire Be Purged"
+L["SETTINGS"] = "Settings"
+L["SETTINGS_GENERAL"] = "General Settings"
+L["SETTINGS_ENABLE_AUTO_SELL"] = "Enable Automatic Selling"
+L["SETTINGS_ENABLE_AUTO_SELL_TOOLTIP"] = "If checked, automatically sells items from your 'sell list' when you visit a merchant."
+L["SETTINGS_ENABLE_DEBUG_MODE"] = "Enable Debug Mode"
+L["SETTINGS_ENABLE_DEBUG_MODE_TOOLTIP"] = "If checked, prints detailed operational messages to chat for troubleshooting."
+L["SELL_LIST"] = "Sell List"
+L["DESTROY_LIST"] = "Destroy List"
+L["LIST_EMPTY"] = "List is empty."
+L["SLASH_COMMANDS_HEADER"] = "Slash Commands:"
+L["SLASH_COMMANDS_DESCRIPTION"] = ("Use slash commands to manage your lists:\\n" ..
+    "/bfbp add <sell|destroy> <itemLink|itemID>\\n" ..
+    "/bfbp list <sell|destroy|all>\\n" ..
+    "/bfbp remove <sell|destroy> <itemLink|itemID>\\n" ..
+    "/bfbp destroyitems (to destroy items on list)\\n" ..
     "/bfbp help (for all commands)")
 
 -- GUI List Management
-L["Add Item ID or Link:"] = "Add Item ID or Link:"
-L["Add Item"] = "Add Item"
-L["Remove Item ID or Link:"] = "Remove Item ID or Link:"
-L["Remove Item"] = "Remove Item"
+L["GUI_ADD_ITEM_LABEL"] = "Item ID or drag & drop to add:"
 
 -- Feedback Messages
-L["Item added to %s: %s"] = "Item added to %s: %s"
-L["Item removed from %s: %s"] = "Item removed from %s: %s"
-L["Item not found in %s: %s"] = "Item not found in %s: %s"
-L["Invalid item format: %s"] = "Invalid item format: %s"
-L["Could not retrieve item information for ID: %d"] = "Could not retrieve item information for ID: %d"
-L["Item already in %s: %s"] = "Item already in %s: %s"
+L["FEEDBACK_ITEM_ADDED"] = "Item added to %s: %s"
+L["FEEDBACK_ITEM_REMOVED"] = "Item removed from %s: %s"
+L["FEEDBACK_INVALID_ITEM_FORMAT"] = "Invalid item format: %s"
+L["FEEDBACK_ITEM_INFO_FAILED"] = "Could not retrieve item information for ID: %d"
+L["FEEDBACK_ITEM_ALREADY_IN_LIST"] = "Item already in %s: %s"
+L["FEEDBACK_INVALID_COMMAND"] = "Invalid command: %s"
+L["FEEDBACK_ITEM_NOT_FOUND_IN_LIST_SPECIFIC"] = "Item %s not found in %s. Use 'X' button to remove items."
 
 -- List Names for Feedback
-L["Sell List Name"] = "Sell List"
-L["Destroy List Name"] = "Destroy List"
+L["SELL_LIST_NAME"] = "Sell List"
+L["DESTROY_LIST_NAME"] = "Destroy List"
 
 -- Standalone GUI
-L["Item List Management"] = "Item List Management"
+L["GUI_ITEM_LIST_MANAGEMENT_TITLE"] = "Item List Management"

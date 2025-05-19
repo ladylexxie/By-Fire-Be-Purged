@@ -24,24 +24,24 @@ function ByFireBePurged:OnInitialize()
     AceGUI = LibStub("AceGUI-3.0") -- Initialize AceGUI upvalue
 
     -- Register options panel (now only for general settings)
-    LibStub("AceConfig-3.0"):RegisterOptionsTable(L["BY_FIRE_BE_PURGED"], self:GetOptionsTable(), "/bfbp")
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions(L["BY_FIRE_BE_PURGED"], L["BY_FIRE_BE_PURGED"])
+    LibStub("AceConfig-3.0"):RegisterOptionsTable(L["ADDON_NAME"], self:GetOptionsTable(), "/bfbp")
+    LibStub("AceConfigDialog-3.0"):AddToBlizOptions(L["ADDON_NAME"], L["ADDON_NAME"])
 
     -- Register slash command
     self:RegisterChatCommand("bfbp", "SlashCommandHandler")
     self:RegisterChatCommand("byfirebepurged", "SlashCommandHandler") -- Alias
 
-    self:Print(L["BY_FIRE_BE_PURGED"] .. " initialized. Type /bfbp for options.")
+    self:Print(L["ADDON_NAME"] .. " initialized. Type /bfbp for options.")
 end
 
 function ByFireBePurged:OnEnable()
     -- Called when the addon is enabled
-    self:Print(L["BY_FIRE_BE_PURGED"] .. " enabled.")
+    self:Print(L["ADDON_NAME"] .. " enabled.")
 end
 
 function ByFireBePurged:OnDisable()
     -- Called when the addon is disabled
-    self:Print(L["BY_FIRE_BE_PURGED"] .. " disabled.")
+    self:Print(L["ADDON_NAME"] .. " disabled.")
 end
 
 function ByFireBePurged:SlashCommandHandler(input)
@@ -56,7 +56,7 @@ function ByFireBePurged:SlashCommandHandler(input)
     else
         -- For now, just open the GUI if any other unrecognized input is given
         -- Or, you could parse for add/remove commands here directly in future
-        self:Print(L["Invalid command: %s"]:format(input) .. " Try /bfbp help or /bfbp config.")
+        self:Print(L["FEEDBACK_INVALID_COMMAND"]:format(input) .. " Try /bfbp help or /bfbp config.")
         self:ToggleStandaloneGUI()
     end
 end
@@ -79,8 +79,8 @@ function ByFireBePurged:CreateStandaloneGUI()
         return
     end
 
-    self.guiFrame:SetTitle(self.L["Item List Management"])
-    self.guiFrame:SetStatusText(self.L["BY_FIRE_BE_PURGED"])
+    self.guiFrame:SetTitle(self.L["GUI_ITEM_LIST_MANAGEMENT_TITLE"])
+    self.guiFrame:SetStatusText(self.L["ADDON_NAME"])
     self.guiFrame:SetLayout("Fill") -- Main frame will fill with its content (the column container)
     self.guiFrame:SetWidth(600) -- Increased width for two columns
     self.guiFrame:SetHeight(450)
@@ -184,16 +184,23 @@ function ByFireBePurged:_PopulateColumnWithControls(listType, parentColumnGroup,
 
     -- Column Title
     local title = AceGUI:Create("Label")
-    local titleText = (listType == "sellList") and L["Sell List"] or L["Destroy List"]
+    local titleText = (listType == "sellList") and L["SELL_LIST"] or L["DESTROY_LIST"]
     title:SetText(titleText)
     title:SetFontObject(GameFontNormalLarge) -- Make title stand out
     title:SetFullWidth(true)
+    if title.SetJustifyH then
+        title:SetJustifyH("CENTER")
+    elseif title.fontstring and title.fontstring.SetJustifyH then
+        title.fontstring:SetJustifyH("CENTER")
+    else
+        if listType == "sellList" then self:Print("DEBUG: Could not set JustifyH for title label. Neither widget:SetJustifyH nor widget.fontstring:SetJustifyH available.") end
+    end
     parentColumnGroup:AddChild(title)
 
     -- Add Item InputBox
     local addBox = AceGUI:Create("EditBox")
     if not addBox then self:Print("Error creating AddBox for " .. listType); return end
-    addBox:SetLabel(L["Add Item ID or Link:"])
+    addBox:SetLabel(L["GUI_ADD_ITEM_LABEL"])
     addBox:SetFullWidth(true)
     addBox:SetCallback("OnEnterPressed", function(widget) self:HandleGUIAddItem(listType, widget) end)
     parentColumnGroup:AddChild(addBox)
@@ -325,7 +332,7 @@ function ByFireBePurged:_RefreshColumnItemsDisplay(listType, scrollContainerWidg
     if count == 0 then
         local emptyLabel = AceGUI:Create("Label")
         if emptyLabel then
-            emptyLabel:SetText(self.L["List is empty."])
+            emptyLabel:SetText(self.L["LIST_EMPTY"])
             emptyLabel:SetFullWidth(true)
             scrollContainerWidget:AddChild(emptyLabel)
         else
@@ -341,25 +348,25 @@ function ByFireBePurged:HandleGUIAddItem(listType, inputWidget)
 
     local itemID, err = self:ParseItemInput(itemString)
     if err or not itemID then
-        self:Print(err or L["Invalid item format: %s"]:format(itemString))
+        self:Print(err or L["FEEDBACK_INVALID_ITEM_FORMAT"]:format(itemString))
         return
     end
 
     local itemName, itemLink = C_Item.GetItemInfo(itemID)
     if not itemName then
-        self:Print(L["Could not retrieve item information for ID: %d"]:format(itemID))
+        self:Print(L["FEEDBACK_ITEM_INFO_FAILED"]:format(itemID))
         return
     end
 
-    local listNameKey = (listType == "sellList" and L["Sell List Name"]) or (listType == "destroyList" and L["Destroy List Name"]) or listType
+    local listNameKey = (listType == "sellList" and L["SELL_LIST_NAME"]) or (listType == "destroyList" and L["DESTROY_LIST_NAME"]) or listType
 
     if self.db.profile[listType][itemID] then
-        self:Print(L["Item already in %s: %s"]:format(listNameKey, itemLink or itemName))
+        self:Print(L["FEEDBACK_ITEM_ALREADY_IN_LIST"]:format(listNameKey, itemLink or itemName))
         return
     end
 
     self.db.profile[listType][itemID] = true
-    self:Print(L["Item added to %s: %s"]:format(listNameKey, itemLink or itemName))
+    self:Print(L["FEEDBACK_ITEM_ADDED"]:format(listNameKey, itemLink or itemName))
     inputWidget:SetText("") -- Clear input
     -- Refresh the specific list that was modified
     if listType == "sellList" and self.guiFrame and self.guiFrame.columnControls.sellList.scrollContainer then
@@ -379,24 +386,22 @@ function ByFireBePurged:HandleGUIRemoveItem(listType, inputWidget)
 
     local itemID, err = self:ParseItemInput(itemString)
     if err or not itemID then
-        self:Print(err or L["Invalid item format: %s"]:format(itemString))
+        self:Print(err or L["FEEDBACK_INVALID_ITEM_FORMAT"]:format(itemString))
         return
     end
 
-    local listNameKey = (listType == "sellList" and L["Sell List Name"]) or (listType == "destroyList" and L["Destroy List Name"]) or listType
+    local listNameKey = (listType == "sellList" and L["SELL_LIST_NAME"]) or (listType == "destroyList" and L["DESTROY_LIST_NAME"]) or listType
     local itemNameForMessage, itemLinkForMessage = C_Item.GetItemInfo(itemID) -- For message purposes
     local displayItemName = itemLinkForMessage or itemNameForMessage or ("ItemID: " .. itemID)
 
     if not self.db.profile[listType][itemID] then
-        -- This message might be confusing if user intended to use the input box
-        -- self:Print(L["Item not found in %s: %s"]:format(listNameKey, displayItemName))
         -- Instead, let's make it clear this input box is not the primary removal method
-        self:Print(L["Item %s not found in %s. Use 'X' button to remove items."]:format(displayItemName, listNameKey))
+        self:Print(L["FEEDBACK_ITEM_NOT_FOUND_IN_LIST_SPECIFIC"]:format(displayItemName, listNameKey))
         return
     end
 
     self.db.profile[listType][itemID] = nil
-    self:Print(L["Item removed from %s: %s"]:format(listNameKey, displayItemName))
+    self:Print(L["FEEDBACK_ITEM_REMOVED"]:format(listNameKey, displayItemName))
     inputWidget:SetText("") -- Clear input
     -- Refresh the specific list that was modified
     if listType == "sellList" and self.guiFrame and self.guiFrame.columnControls.sellList.scrollContainer then
@@ -409,7 +414,7 @@ end
 -- Helper function to parse item ID from string (link or ID)
 function ByFireBePurged:ParseItemInput(itemString)
     if not itemString or type(itemString) ~= "string" then
-        return nil, L["Invalid item format: %s"]:format(tostring(itemString))
+        return nil, L["FEEDBACK_INVALID_ITEM_FORMAT"]:format(tostring(itemString))
     end
 
     itemString = itemString:trim()
@@ -432,7 +437,7 @@ function ByFireBePurged:ParseItemInput(itemString)
     if itemID then
         return itemID
     else
-        return nil, L["Invalid item format: %s"]:format(itemString)
+        return nil, L["FEEDBACK_INVALID_ITEM_FORMAT"]:format(itemString)
     end
 end
 
@@ -446,38 +451,38 @@ end
 
 function ByFireBePurged:GetOptionsTable()
     local options = {
-        name = L["BY_FIRE_BE_PURGED"] .. " " .. L["Settings"],
+        name = L["ADDON_NAME"] .. " " .. L["SETTINGS"],
         type = "group",
         args = {
             general = {
                 type = "group",
-                name = L["General Settings"],
+                name = L["SETTINGS_GENERAL"],
                 order = 1,
                 args = {
                     autoSell = {
                         type = "toggle",
-                        name = L["Enable Automatic Selling"],
-                        desc = L["Enable Automatic Selling_Tooltip"],
+                        name = L["SETTINGS_ENABLE_AUTO_SELL"],
+                        desc = L["SETTINGS_ENABLE_AUTO_SELL_TOOLTIP"],
                         order = 1,
                         get = function(info) return self.db.profile.autoSell end,
                         set = function(info, value) self.db.profile.autoSell = value end,
                     },
                     debugMode = {
                         type = "toggle",
-                        name = L["Enable Debug Mode"],
-                        desc = L["Enable Debug Mode_Tooltip"],
+                        name = L["SETTINGS_ENABLE_DEBUG_MODE"],
+                        desc = L["SETTINGS_ENABLE_DEBUG_MODE_TOOLTIP"],
                         order = 2,
                         get = function(info) return self.db.profile.debugMode end,
                         set = function(info, value) self.db.profile.debugMode = value end,
                     },
                     slashHeader = {
                         type = "header",
-                        name = L["Slash Commands:"],
+                        name = L["SLASH_COMMANDS_HEADER"],
                         order = 10,
                     },
                     slashDesc = {
                         type = "description",
-                        name = L["Slash Command Description"],
+                        name = L["SLASH_COMMANDS_DESCRIPTION"],
                         order = 11,
                         fontSize = "medium",
                     },
@@ -513,7 +518,7 @@ function ByFireBePurged:FormatItemList(itemList)
         end
     end
     if count == 0 then
-        return L["List is empty."]
+        return L["LIST_EMPTY"]
     end
     return formattedString
 end
