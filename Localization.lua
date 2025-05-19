@@ -22,3 +22,24 @@ L["Slash Command Description"] = ("Use slash commands to manage your lists:\n" .
     "/bfbp remove <sell|destroy> <itemLink|itemID>\n" ..
     "/bfbp destroyitems (to destroy items on list)\n" ..
     "/bfbp help (for all commands)")
+
+-- GUI List Management
+L["Add Item ID or Link:"] = "Add Item ID or Link:"
+L["Add Item"] = "Add Item"
+L["Remove Item ID or Link:"] = "Remove Item ID or Link:"
+L["Remove Item"] = "Remove Item"
+
+-- Feedback Messages
+L["Item added to %s: %s"] = "Item added to %s: %s"
+L["Item removed from %s: %s"] = "Item removed from %s: %s"
+L["Item not found in %s: %s"] = "Item not found in %s: %s"
+L["Invalid item format: %s"] = "Invalid item format: %s"
+L["Could not retrieve item information for ID: %d"] = "Could not retrieve item information for ID: %d"
+L["Item already in %s: %s"] = "Item already in %s: %s"
+
+-- List Names for Feedback
+L["Sell List Name"] = "Sell List"
+L["Destroy List Name"] = "Destroy List"
+
+-- Standalone GUI
+L["Item List Management"] = "Item List Management"
