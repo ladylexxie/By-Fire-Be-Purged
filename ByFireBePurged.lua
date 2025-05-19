@@ -104,6 +104,16 @@ function ByFireBePurged:CreateStandaloneGUI()
     columnContainer:SetFullHeight(true)
     self.guiFrame:AddChild(columnContainer)
 
+    local backdropInfo = {
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        -- edgeFile = "Interface\\Tooltip\\UI-Tooltip-Border", -- Not used in this texture method
+        -- tile = true, tileSize = 16, edgeSize = 16, -- Not directly used, SetAllPoints handles fill
+        -- insets = { left = 3, right = 3, top = 3, bottom = 3 } -- Not used
+    }
+    local backgroundColor = {0.05, 0.05, 0.05, 0.7} -- Darkened background
+    local borderColor = {0, 0, 0, 0.8}               -- Black border
+    local borderThickness = 1 -- Pixel thickness for the border
+
     -- Sell List Column
     local sellColumnGroup = AceGUI:Create("SimpleGroup")
     if not sellColumnGroup then
@@ -116,6 +126,20 @@ function ByFireBePurged:CreateStandaloneGUI()
     sellColumnGroup:SetFullHeight(true)
     columnContainer:AddChild(sellColumnGroup) -- Add child FIRST, then set point relative to parent
     sellColumnGroup:SetPoint("TOPLEFT", 0, 0) -- Relative to parent's content frame
+
+    -- Attempt to add background texture directly
+    -- Outer texture for border
+    local borderSell = sellColumnGroup.frame:CreateTexture(nil, "BACKGROUND", nil, -8) -- Draw layer behind background
+    borderSell:SetTexture(backdropInfo.bgFile)
+    borderSell:SetAllPoints(true) -- Fill the entire frame for the border
+    borderSell:SetVertexColor(unpack(borderColor))
+
+    -- Inner texture for main background (slightly smaller than border)
+    local bgSell = sellColumnGroup.frame:CreateTexture(nil, "BACKGROUND", nil, -7) -- Draw layer on top of border texture
+    bgSell:SetTexture(backdropInfo.bgFile)
+    bgSell:SetPoint("TOPLEFT", sellColumnGroup.frame, "TOPLEFT", borderThickness, -borderThickness)
+    bgSell:SetPoint("BOTTOMRIGHT", sellColumnGroup.frame, "BOTTOMRIGHT", -borderThickness, borderThickness)
+    bgSell:SetVertexColor(unpack(backgroundColor))
 
     self:_PopulateColumnWithControls("sellList", sellColumnGroup, self.guiFrame.columnControls.sellList)
 
@@ -133,6 +157,20 @@ function ByFireBePurged:CreateStandaloneGUI()
     destroyColumnGroup:SetFullHeight(true)
     columnContainer:AddChild(destroyColumnGroup) -- Add child FIRST
     destroyColumnGroup:SetPoint("TOPLEFT", sellColumnGroup.frame, "TOPRIGHT", 15, 0) -- Correct: Use .frame
+
+    -- Attempt to add background texture directly
+    -- Outer texture for border
+    local borderDestroy = destroyColumnGroup.frame:CreateTexture(nil, "BACKGROUND", nil, -8)
+    borderDestroy:SetTexture(backdropInfo.bgFile)
+    borderDestroy:SetAllPoints(true)
+    borderDestroy:SetVertexColor(unpack(borderColor))
+
+    -- Inner texture for main background
+    local bgDestroy = destroyColumnGroup.frame:CreateTexture(nil, "BACKGROUND", nil, -7)
+    bgDestroy:SetTexture(backdropInfo.bgFile)
+    bgDestroy:SetPoint("TOPLEFT", destroyColumnGroup.frame, "TOPLEFT", borderThickness, -borderThickness)
+    bgDestroy:SetPoint("BOTTOMRIGHT", destroyColumnGroup.frame, "BOTTOMRIGHT", -borderThickness, borderThickness)
+    bgDestroy:SetVertexColor(unpack(backgroundColor))
 
     self:_PopulateColumnWithControls("destroyList", destroyColumnGroup, self.guiFrame.columnControls.destroyList)
 
